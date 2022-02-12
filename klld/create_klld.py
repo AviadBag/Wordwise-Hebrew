@@ -8,13 +8,15 @@ from pathlib import Path
 
 from parse_es import parse_es_dict
 from parse_ja import parse_ja_dict
+from parse_he_first import parse_he_dict
 
 DICT_TITLES = {
     'de': 'Oxford English-German',
     'es': 'Oxford English-Spanish',
     'fr': 'Oxford English-French',
     'it': 'Oxford English-Italian',
-    'ja': 'Progressive English-Japanese'
+    'ja': 'Progressive English-Japanese',
+    'he': ''
 }
 
 
@@ -51,10 +53,13 @@ for lemma, sense_id in klld_conn.execute(
         WHERE short_def IS NOT NULL
         '''):
     en_klld[lemma].append(sense_id)
+print(en_klld['palm'])
 
 dic = defaultdict(list)
 if args.lang == 'ja':
     parse_ja_dict(args.dict_rawml, dic, en_klld)
+elif args.lang == 'he':
+    parse_he_dict(dic, en_klld)
 else:
     parse_es_dict(args.dict_rawml, dic, en_klld)
 
@@ -72,12 +77,13 @@ conn.execute('UPDATE sources SET label = ? WHERE id = 3',
 replace_count = 0
 
 for lemma, sense_ids in en_klld.items():
-    for sense_id, def_tuple in zip(sense_ids, dic[lemma]):
-        conn.execute(
-            'UPDATE senses SET source_id = 3, full_def = ?, short_def = ?,'
-            'example_sentence = ? WHERE id = ?',
-            break_examples(def_tuple, args.lang) + (sense_id,))
-        replace_count += 1
+    for sense_id in sense_ids:
+        if len(dic[lemma]) > 0:
+            conn.execute(
+                'UPDATE senses SET source_id = 3, full_def = ?, short_def = ?,'
+                'example_sentence = ? WHERE id = ?',
+                break_examples(dic[lemma][0], args.lang) + (sense_id,))
+            replace_count += 1
 
 conn.commit()
 new_klld = Path(f'kll.en.{args.lang}.klld')
